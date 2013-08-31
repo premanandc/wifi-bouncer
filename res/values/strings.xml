@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Wifi Bouncer</string>
+    <string name="hello">Hello wifi-bouncer!</string>
+    <string name="action_wifi_scan">Wifi Scan</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="clear_log">Clear</string>
+
+</resources>
