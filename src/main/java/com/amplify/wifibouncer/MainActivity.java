@@ -5,36 +5,40 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
+import android.widget.Toast;
 import com.google.inject.Inject;
 import roboguice.activity.RoboActivity;
 import roboguice.inject.ContentView;
 import roboguice.inject.InjectView;
 
-import static android.net.wifi.WifiManager.SCAN_RESULTS_AVAILABLE_ACTION;
+import static android.net.wifi.WifiManager.NETWORK_STATE_CHANGED_ACTION;
+import static android.widget.Toast.LENGTH_SHORT;
 
 @ContentView(R.layout.activity_main)
 public class MainActivity extends RoboActivity {
 
-    private static final IntentFilter WIFI_SCAN_FILTER = new IntentFilter(SCAN_RESULTS_AVAILABLE_ACTION);
-    private static final IntentFilter CONNECTIVITY_FILTER = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
+    private static final IntentFilter WIFI_STATE_CHANGED = new IntentFilter(NETWORK_STATE_CHANGED_ACTION);
 
-    private final BroadcastReceiver networkReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver wifiStateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (connectivityManager.getActiveNetworkInfo() != null) {
-                log("Network reconnected to " + connectivityManager.getActiveNetworkInfo());
+            final NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+            if (networkInfo != null) {
+                log("Network connected to " + networkInfo);
+                Toast.makeText(context, getString(R.string.wifi_connected_message,
+                        networkInfo.getExtraInfo()),
+                        LENGTH_SHORT).show();
             } else {
-                log("Not connected right now.");
+                log("Not connected to any network interface right now.");
             }
         }
     };
-
-    private final BroadcastReceiver wifiReceiver = new WifiScanBroadcastReceiver();
 
     @Inject
     private ConnectivityManager connectivityManager;
@@ -48,24 +52,26 @@ public class MainActivity extends RoboActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        registerReceiver(wifiReceiver, WIFI_SCAN_FILTER);
-        registerReceiver(networkReceiver, CONNECTIVITY_FILTER);
+        registerReceiver(wifiStateReceiver, WIFI_STATE_CHANGED);
     }
 
     @Override
     protected void onStop() {
-        unregisterReceiver(wifiReceiver);
-        unregisterReceiver(networkReceiver);
+        unregisterReceiver(wifiStateReceiver);
         super.onStop();
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.wifi_scan) {
-            log("Wifi scan started!!");
-            wifiManager.setWifiEnabled(true);
+        final int menuItemPressed = item.getItemId();
+        if (menuItemPressed == R.id.wifi_scan) {
+            if (!wifiManager.isWifiEnabled()) {
+                log("Wifi is currently turned off. Enabling!");
+                wifiManager.setWifiEnabled(true);
+            }
+            log("Initiating manual wifi scan!!");
             return wifiManager.startScan();
-        } else if (item.getItemId() == R.id.clear_log) {
+        } else if (menuItemPressed == R.id.clear_log) {
             logText.setText("");
             return true;
         }

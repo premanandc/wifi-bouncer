@@ -17,14 +17,16 @@ import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import roboguice.receiver.RoboBroadcastReceiver;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import static android.net.wifi.WifiManager.calculateSignalLevel;
+import static com.amplify.wifibouncer.Globals.TAG;
+import static com.amplify.wifibouncer.Globals.WIFI_LEVELS;
 import static com.google.common.collect.Iterables.transform;
 import static com.google.common.collect.Sets.newHashSet;
 
-class WifiScanBroadcastReceiver extends RoboBroadcastReceiver {
+public class WifiScanBroadcastReceiver extends RoboBroadcastReceiver {
 
     public static final Ordering<ScanResult> BY_SIGNAL_STRENGTH = new Ordering<ScanResult>() {
         @Override
@@ -39,6 +41,7 @@ class WifiScanBroadcastReceiver extends RoboBroadcastReceiver {
             return wifiConfiguration.SSID.replaceAll(DOUBLE_QUOTE, "");
         }
     };
+    public static final int FAIR_SIGNAL = 1;
 
     @Inject
     private WifiManager wifiManager;
@@ -46,52 +49,68 @@ class WifiScanBroadcastReceiver extends RoboBroadcastReceiver {
     @Override
     protected void handleReceive(Context context, Intent intent) {
         super.handleReceive(context, intent);
-        Optional<WifiConfiguration> accessPoint = betterAccessPoint();
+
+        Log.i(TAG, "Received intent: " + intent.getAction() + ": " + intent.getExtras());
+
+        final WifiInfo current = wifiManager.getConnectionInfo();
+        final int currentSignalStrength = current.getRssi();
+        Log.i(TAG, "Connected to an access point with signal strength " + currentSignalStrength + " - level " + calculateSignalLevel(currentSignalStrength, WIFI_LEVELS));
+        if (isGoodEnough(current)) {
+            Log.i(TAG, "Connected to a good enough access point. No need to initiate wifi reconnect!");
+            return;
+        }
+        Optional<WifiConfiguration> accessPoint = bestAccessPoint();
+
         if (accessPoint.isPresent()) {
-            reconnectTo(accessPoint.get());
+            launchConfirmActivity(context, accessPoint.get());
         }
     }
 
-    private void reconnectTo(WifiConfiguration config) {
-        final int networkId = wifiManager.updateNetwork(config);
-        wifiManager.enableNetwork(networkId, true);
-        wifiManager.reconnect();
-        Log.i(Globals.TAG, "Reconnecting to network with id: " + config.SSID + ": " + config.BSSID);
+    private boolean isGoodEnough(WifiInfo wifiInfo) {
+        return calculateSignalLevel(wifiInfo.getRssi(), Globals.WIFI_LEVELS) > FAIR_SIGNAL;
     }
 
-    private Optional<WifiConfiguration> betterAccessPoint() {
+    private void launchConfirmActivity(Context context, WifiConfiguration accessPoint) {
+        final Intent confirm = new Intent(context, ConfirmReconnectActivity.class);
+        confirm.putExtra(Globals.ACCESS_POINT_EXTRA, accessPoint);
+        confirm.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        context.startActivity(confirm);
+    }
+
+    private Optional<WifiConfiguration> bestAccessPoint() {
         final List<WifiConfiguration> configuredNetworks = wifiManager.getConfiguredNetworks();
         Optional<ScanResult> bestAccessPoint = bestAccessPoint(configuredNetworks);
 
         if (bestAccessPoint.isPresent()) {
-            final ScanResult scanResult = bestAccessPoint.get();
-            final WifiConfiguration config = FluentIterable.from(configuredNetworks)
-                    .firstMatch(new WifiConfigurationPredicate(scanResult)).get();
-            config.BSSID = scanResult.BSSID;
-            config.priority = 1;
-            return Optional.of(config);
+            return Optional.of(adaptScanResultToWifiConfiguration(configuredNetworks, bestAccessPoint));
         }
         return Optional.absent();
     }
 
+    private WifiConfiguration adaptScanResultToWifiConfiguration(List<WifiConfiguration> configuredNetworks, Optional<ScanResult> bestAccessPoint) {
+        final ScanResult scanResult = bestAccessPoint.get();
+        final WifiConfiguration config = FluentIterable.from(configuredNetworks)
+                .firstMatch(new WifiConfigurationPredicate(scanResult)).get();
+        config.BSSID = scanResult.BSSID;
+        config.priority = 1;
+        return config;
+    }
+
     private Optional<ScanResult> bestAccessPoint(List<WifiConfiguration> configuredNetworks) {
         final WifiInfo connectionInfo = wifiManager.getConnectionInfo();
-        Log.i(Globals.TAG, "Currently connected to: " + connectionInfo.getSSID() + ": " + connectionInfo.getBSSID());
         final Set<String> configuredNetworkNames = newHashSet(transform(configuredNetworks, TO_NAME));
-        Log.i(Globals.TAG, "The following networks are configured: " + configuredNetworkNames);
+        Log.i(TAG, "The following networks are configured: " + configuredNetworkNames);
         final List<ScanResult> unfiltered = wifiManager.getScanResults();
-        Collections.sort(unfiltered, BY_SIGNAL_STRENGTH);
-        for (ScanResult scanResult : unfiltered) {
-            Log.i(Globals.TAG, "Unfiltered: " + scanResult.SSID + ", " + scanResult.BSSID + ", " + scanResult.level);
-        }
 
         final ImmutableList<ScanResult> filtered = FluentIterable.from(unfiltered)
                 .filter(new CurrentNetworkFilter(connectionInfo))
                 .filter(new ConfiguredNetworkFilter(configuredNetworkNames))
                 .filter(new GreaterSignalStrengthFilter(connectionInfo))
                 .toSortedList(BY_SIGNAL_STRENGTH);
+        Log.i(TAG, "Signal strength of current access point is " + connectionInfo.getSSID() + ": " + connectionInfo.getBSSID() + " is " + connectionInfo.getRssi() + ", level = " + calculateSignalLevel(connectionInfo.getRssi(), WIFI_LEVELS));
+        Log.i(TAG, "Found " + filtered.size() + " better access point(s).");
         for (ScanResult scanResult : filtered) {
-            Log.i(Globals.TAG, "Filtered: " + scanResult.SSID + ", " + scanResult.BSSID + ", " + scanResult.level);
+            Log.i(TAG, "Signal strength of " + scanResult.SSID + ": " + scanResult.BSSID + " is " + scanResult.level + ", level = " + calculateSignalLevel(scanResult.level, WIFI_LEVELS));
         }
         return filtered.isEmpty() ? Optional.<ScanResult>absent() : Optional.of(filtered.get(0));
     }

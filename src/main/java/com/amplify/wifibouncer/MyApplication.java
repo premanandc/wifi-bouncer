@@ -1,14 +1,13 @@
-package com.amplify;
+package com.amplify.wifibouncer;
 
 import android.app.Application;
 import com.google.inject.Stage;
 import roboguice.RoboGuice;
 
-public class Main extends Application {
+public class MyApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
         RoboGuice.setBaseApplicationInjector(this, Stage.PRODUCTION);
-
     }
 }

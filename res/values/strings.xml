@@ -2,9 +2,11 @@
 <resources>
 
     <string name="app_name">Wifi Bouncer</string>
-    <string name="hello">Hello wifi-bouncer!</string>
     <string name="action_wifi_scan">Wifi Scan</string>
-    <string name="hello_world">Hello world!</string>
     <string name="clear_log">Clear</string>
+    <string name="wifi_connected_message">Connected to wifi network %s!</string>
+    <string name="confirm_text">We have found a better wifi connection. Do you want to reconnect?</string>
+    <string name="cancel_button_text">No</string>
+    <string name="confirm_button_text">Yes</string>
 
 </resources>
