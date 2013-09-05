@@ -11,6 +11,8 @@ import android.view.Window;
 import com.google.inject.Inject;
 import roboguice.activity.RoboActivity;
 
+import java.util.concurrent.locks.ReentrantLock;
+
 import static com.amplify.wifibouncer.Globals.RECONNECT_NOTIFICATION_ID;
 import static com.amplify.wifibouncer.Globals.TAG;
 
@@ -21,39 +23,63 @@ public class ConfirmReconnectActivity extends RoboActivity {
 
     @Inject
     private WifiManager wifiManager;
+    @Inject
+    private ReentrantLock reconnectLock;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (reconnectLock.isLocked()) {
+            Log.i(TAG, "Reconnection is already in progress. No need to do this again right now.");
+            finish();
+        }
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFeatureDrawableResource(Window.FEATURE_NO_TITLE, android.R.drawable.ic_dialog_alert);
         setContentView(R.layout.confirm_reconnect_dialog);
     }
 
-    private void reconnectTo(WifiConfiguration config) {
-        Log.i(TAG, "Reconnecting to network with id: " + config.SSID + ": " + config.BSSID);
+    private void tryReconnect(WifiConfiguration config) {
+        Log.i(TAG, "Trying reconnect to network with id: " + config.SSID + ": " + config.BSSID);
         final int networkId = wifiManager.updateNetwork(config);
         if (networkId == -1) {
             Log.e(TAG, "Failed to update network with id: " + config.SSID + ": " + config.BSSID);
+            return;
         }
         if (!wifiManager.enableNetwork(networkId, true)) {
             Log.e(TAG, "Failed to enable network with id: " + config.SSID + ": " + config.BSSID);
+            return;
         }
+        if (!reconnectLock.tryLock()) {
+            Log.e(TAG, "Failed to acquire reconnect lock. A reconnect may already be in progress.");
+            return;
+        }
+        reconnectTo(config);
+    }
+
+    private void reconnectTo(WifiConfiguration config) {
         if (wifiManager.reconnect()) {
-            final Notification notification = new Notification.Builder(this)
-                    .setOngoing(true)
-                    .setContentTitle("Reconnecting to wifi: " + config.SSID)
-                    .setSmallIcon(android.R.drawable.ic_notification_overlay).build();
+            final Notification notification = createNotification(config);
             notificationManager.notify(RECONNECT_NOTIFICATION_ID, notification);
         } else {
-            Log.i(TAG, "Failed to initiate wifi reconnect");
+            Log.e(TAG, "Failed to initiate wifi reconnect.");
+            reconnectLock.unlock();
         }
+    }
+
+    private Notification createNotification(WifiConfiguration config) {
+        return new Notification.Builder(this)
+                .setOngoing(true)
+                .setContentTitle("Reconnecting to wifi: " + config.SSID)
+                .setContentText("Access point " + config.BSSID)
+                .setSmallIcon(R.drawable.wifi_icon)
+                .setProgress(0, 0, true)
+                .build();
     }
 
     public void onConfirmClick(@SuppressWarnings("UnusedParameters") View ignored) {
         final WifiConfiguration configuration = getIntent().getParcelableExtra(Globals.ACCESS_POINT_EXTRA);
         if (configuration != null) {
-            reconnectTo(configuration);
+            tryReconnect(configuration);
         } else {
             Log.w(Globals.TAG, "Could not find wifi configuration to connect to.");
         }

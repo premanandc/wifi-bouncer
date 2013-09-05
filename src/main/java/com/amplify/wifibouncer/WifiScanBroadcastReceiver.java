@@ -48,8 +48,6 @@ public class WifiScanBroadcastReceiver extends RoboBroadcastReceiver {
 
     @Override
     protected void handleReceive(Context context, Intent intent) {
-        super.handleReceive(context, intent);
-
         Log.i(TAG, "Received intent: " + intent.getAction() + ": " + intent.getExtras());
 
         final WifiInfo current = wifiManager.getConnectionInfo();
