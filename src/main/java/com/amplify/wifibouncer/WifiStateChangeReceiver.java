@@ -24,19 +24,16 @@ public class WifiStateChangeReceiver extends RoboBroadcastReceiver {
     @Override
     protected void handleReceive(Context context, Intent intent) {
         final NetworkInfo networkInfo = intent.getParcelableExtra(WifiManager.EXTRA_NETWORK_INFO);
-        Log.i(TAG, "Network status changed to !" + networkInfo.getDetailedState());
-        if (networkInfo.isConnected()) {
-            if (reconnectLock.isLocked()) {
-                Log.i(TAG, "Unlocking reconnect lock");
-                reconnectLock.unlock();
-                final Notification notification = new Notification.Builder(context)
-                        .setAutoCancel(true)
-                        .setProgress(0, 0, false)
-                        .setContentTitle("Success!")
-                        .setContentText("Reconnect successful!")
-                        .build();
-                notificationManager.notify(Globals.RECONNECT_NOTIFICATION_ID, notification);
-            }
+        Log.i(TAG, "Network status changed to: " + networkInfo.getDetailedState());
+        if (networkInfo.isConnected() && reconnectLock.isLocked()) {
+            Log.i(TAG, "Unlocking reconnect lock!");
+            reconnectLock.unlock();
+            final Notification notification = new Notification.Builder(context)
+                    .setProgress(0, 0, false)
+                    .setContentTitle("Success!")
+                    .setContentText("Reconnection successful!")
+                    .build();
+            notificationManager.notify(Globals.RECONNECT_NOTIFICATION_ID, notification);
         }
     }
 }

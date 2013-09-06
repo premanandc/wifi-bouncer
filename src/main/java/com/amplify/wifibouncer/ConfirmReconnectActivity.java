@@ -5,11 +5,14 @@ import android.app.NotificationManager;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
+import android.widget.TextView;
 import com.google.inject.Inject;
 import roboguice.activity.RoboActivity;
+import roboguice.inject.InjectView;
 
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -25,6 +28,8 @@ public class ConfirmReconnectActivity extends RoboActivity {
     private WifiManager wifiManager;
     @Inject
     private ReentrantLock reconnectLock;
+    @InjectView(R.id.time_to_respond)
+    private TextView timeToRespond;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,6 +41,18 @@ public class ConfirmReconnectActivity extends RoboActivity {
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFeatureDrawableResource(Window.FEATURE_NO_TITLE, android.R.drawable.ic_dialog_alert);
         setContentView(R.layout.confirm_reconnect_dialog);
+        new CountDownTimer(20000, 1000) {
+
+            public void onTick(long millisUntilFinished) {
+                timeToRespond.setText("You have " + millisUntilFinished/1000 + " seconds to respond.");
+            }
+
+            public void onFinish() {
+                timeToRespond.setText("Closing");
+                ConfirmReconnectActivity.this.finish();
+            }
+        }.start();
+
     }
 
     private void tryReconnect(WifiConfiguration config) {

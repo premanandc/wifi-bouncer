@@ -10,7 +10,6 @@ import android.util.Log;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
@@ -23,6 +22,7 @@ import java.util.Set;
 import static android.net.wifi.WifiManager.calculateSignalLevel;
 import static com.amplify.wifibouncer.Globals.TAG;
 import static com.amplify.wifibouncer.Globals.WIFI_LEVELS;
+import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Iterables.transform;
 import static com.google.common.collect.Sets.newHashSet;
 
@@ -80,18 +80,20 @@ public class WifiScanBroadcastReceiver extends RoboBroadcastReceiver {
         Optional<ScanResult> bestAccessPoint = bestAccessPoint(configuredNetworks);
 
         if (bestAccessPoint.isPresent()) {
-            return Optional.of(adaptScanResultToWifiConfiguration(configuredNetworks, bestAccessPoint));
+            return Optional.of(adaptScanResultToWifiConfiguration(configuredNetworks, bestAccessPoint.get()));
         }
         return Optional.absent();
     }
 
-    private WifiConfiguration adaptScanResultToWifiConfiguration(List<WifiConfiguration> configuredNetworks, Optional<ScanResult> bestAccessPoint) {
-        final ScanResult scanResult = bestAccessPoint.get();
-        final WifiConfiguration config = FluentIterable.from(configuredNetworks)
-                .firstMatch(new WifiConfigurationPredicate(scanResult)).get();
+    private WifiConfiguration adaptScanResultToWifiConfiguration(List<WifiConfiguration> configuredNetworks, ScanResult scanResult) {
+        final WifiConfiguration config = from(configuredNetworks).firstMatch(matchingNetworkName(scanResult)).get();
         config.BSSID = scanResult.BSSID;
         config.priority = 1;
         return config;
+    }
+
+    private WifiConfigurationPredicate matchingNetworkName(ScanResult scanResult) {
+        return new WifiConfigurationPredicate(scanResult);
     }
 
     private Optional<ScanResult> bestAccessPoint(List<WifiConfiguration> configuredNetworks) {
@@ -100,7 +102,7 @@ public class WifiScanBroadcastReceiver extends RoboBroadcastReceiver {
         Log.i(TAG, "The following networks are configured: " + configuredNetworkNames);
         final List<ScanResult> unfiltered = wifiManager.getScanResults();
 
-        final ImmutableList<ScanResult> filtered = FluentIterable.from(unfiltered)
+        final ImmutableList<ScanResult> filtered = from(unfiltered)
                 .filter(new CurrentNetworkFilter(connectionInfo))
                 .filter(new ConfiguredNetworkFilter(configuredNetworkNames))
                 .filter(new GreaterSignalStrengthFilter(connectionInfo))
