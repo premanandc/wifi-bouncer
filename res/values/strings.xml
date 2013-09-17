@@ -9,5 +9,6 @@
     <string name="cancel_button_text">No</string>
     <string name="confirm_button_text">Yes</string>
     <string name="time_to_respond_text">You have %d seconds to respond.</string>
+    <string name="preferences">Preferences</string>
 
 </resources>

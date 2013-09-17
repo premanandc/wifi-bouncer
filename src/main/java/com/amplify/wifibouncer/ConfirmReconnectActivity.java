@@ -88,7 +88,8 @@ public class ConfirmReconnectActivity extends RoboActivity {
                 .setOngoing(true)
                 .setContentTitle("Reconnecting to wifi: " + config.SSID)
                 .setContentText("Access point " + config.BSSID)
-                .setSmallIcon(R.drawable.wifi_icon)
+                .setSmallIcon(android.R.drawable.ic_popup_sync)
+                .setTicker("Reconnecting to wifi: " + config.SSID)
                 .setProgress(0, 0, true)
                 .build();
     }

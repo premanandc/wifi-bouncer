@@ -25,7 +25,7 @@ public class SignalStrengthReceiver extends RoboBroadcastReceiver {
         Log.i(TAG, "Connected to wifi access point with signal strength: " + signalStrength);
         final int signalLevel = calculateSignalLevel(signalStrength, WIFI_LEVELS);
         if (isPoorConnection(signalLevel)) {
-            Log.i(TAG, "The current signal level is " + signalLevel);
+            Log.i(TAG, "Connected to a poor connection. Initiating automatic wifi scan");
             wifiManager.startScan();
         }
     }

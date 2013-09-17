@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+            android:title="General">
+
+        <SwitchPreference
+                android:key="wifi_bouncer_enabled"
+                android:title="Enable WiFi Bouncer"
+                android:summary="Turn on the Wifi Bouncer"/>
+
+        <ListPreference
+                android:key="reconnect_intervals"
+                android:dependency="wifi_bouncer_enabled"
+                android:layout="?android:attr/preferenceLayoutChild"
+                android:title="Reconnect Interval"
+                android:entries="@array/reconnect_interval_labels"
+                android:entryValues="@array/reconnect_intervals"
+                android:summary="Amount of time to wait before reconnecting automatically"/>
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

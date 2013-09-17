@@ -12,6 +12,7 @@ import roboguice.receiver.RoboBroadcastReceiver;
 
 import java.util.concurrent.locks.ReentrantLock;
 
+import static com.amplify.wifibouncer.Globals.RECONNECT_NOTIFICATION_ID;
 import static com.amplify.wifibouncer.Globals.TAG;
 
 public class WifiStateChangeReceiver extends RoboBroadcastReceiver {
@@ -25,15 +26,19 @@ public class WifiStateChangeReceiver extends RoboBroadcastReceiver {
     protected void handleReceive(Context context, Intent intent) {
         final NetworkInfo networkInfo = intent.getParcelableExtra(WifiManager.EXTRA_NETWORK_INFO);
         Log.i(TAG, "Network status changed to: " + networkInfo.getDetailedState());
-        if (networkInfo.isConnected() && reconnectLock.isLocked()) {
-            Log.i(TAG, "Unlocking reconnect lock!");
-            reconnectLock.unlock();
-            final Notification notification = new Notification.Builder(context)
-                    .setProgress(0, 0, false)
-                    .setContentTitle("Success!")
-                    .setContentText("Reconnection successful!")
-                    .build();
-            notificationManager.notify(Globals.RECONNECT_NOTIFICATION_ID, notification);
+        if (networkInfo.isConnected()) {
+            notificationManager.cancelAll();
+            if (reconnectLock.isLocked()) {
+                Log.i(TAG, "Unlocking reconnect lock!");
+                reconnectLock.unlock();
+                final Notification notification = new Notification.Builder(context)
+                        .setProgress(0, 0, false)
+                        .setContentTitle("Success!")
+                        .setContentText("Reconnection successful!")
+                        .setSmallIcon(R.drawable.wifi_scan)
+                        .build();
+                notificationManager.notify(RECONNECT_NOTIFICATION_ID, notification);
+            }
         }
     }
 }
